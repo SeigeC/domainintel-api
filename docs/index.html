@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DomainIntel API</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f6f8fa;
+    --border: #e1e4e8;
+    --text: #24292e;
+    --text-mut: #586069;
+    --accent: #0969da;
+    --accent-bg: #ddf4ff;
+    --code-bg: #1e1e2e;
+    --code-text: #cdd6f4;
+    --green: #1a7f37;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.6;
+    background: var(--bg);
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 0;
+    text-align: center;
+    background: linear-gradient(180deg, #f6f8fa 0%, #ffffff 100%);
+  }
+  header h1 { margin: 0 0 4px; font-size: 2rem; }
+  header p { margin: 0; color: var(--text-mut); }
+  .container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  nav {
+    position: sticky; top: 0; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    z-index: 10; padding: 12px 0;
+  }
+  nav ul { list-style: none; display: flex; gap: 24px; margin: 0; padding: 0; flex-wrap: wrap; }
+  nav a { color: var(--accent); text-decoration: none; font-size: 0.95rem; }
+  nav a:hover { text-decoration: underline; }
+  section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  section:last-child { border-bottom: none; }
+  h2 { margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 1.15rem; margin-bottom: 8px; }
+  .endpoint {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .method {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 8px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  .method-get { background: var(--green); }
+  .method-post { background: #8250df; }
+  .path {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  p code, li code {
+    background: var(--accent-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--bg-alt); }
+  .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .plan {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+  .plan h3 { margin-top: 0; }
+  .plan .price { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+  .plan .price small { font-size: 0.9rem; font-weight: 400; color: var(--text-mut); }
+  .plan ul { list-style: none; padding: 0; text-align: left; }
+  .plan li { padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .plan li:last-child { border-bottom: none; }
+  .plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  footer { text-align: center; padding: 30px 20px; color: var(--text-mut); font-size: 0.85rem; }
+  @media (max-width: 640px) {
+    .pricing { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>DomainIntel API</h1>
+    <p>Domain intelligence: RDAP, DNS, certificate transparency, and bulk lookups</p>
+  </div>
+</header>
+
+<nav>
+  <div class="container">
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#endpoints">Endpoints</a></li>
+      <li><a href="#errors">Errors</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="container">
+
+<section id="overview">
+  <h2>Overview</h2>
+  <p>DomainIntel API aggregates domain intelligence from multiple authoritative sources into a single, consistent JSON API:</p>
+  <ul>
+    <li><strong>RDAP</strong> &mdash; registration status, key dates, nameservers, registrar (via <code>rdap.org</code>)</li>
+    <li><strong>DNS</strong> &mdash; A, AAAA, NS, CNAME, SOA, MX, TXT, CAA records (via DNS-over-HTTPS)</li>
+    <li><strong>Certificates</strong> &mdash; certificate transparency logs (via <code>crt.sh</code>)</li>
+    <li><strong>Bulk</strong> &mdash; parallel multi-domain, multi-type lookups in one request</li>
+  </ul>
+  <p>All responses are cached (RDAP 24h, DNS 5m, certificates 1h) and rate limited per client. A successful response uses the envelope <code>{"data": ..., "cached": false}</code>.</p>
+</section>
+
+<section id="auth">
+  <h2>Authentication</h2>
+  <p>When deployed behind the RapidAPI gateway, include your proxy secret header:</p>
+  <pre><code>X-RapidAPI-Proxy-Secret: YOUR_SECRET</code></pre>
+  <p>For direct access (outside RapidAPI), use an API key instead:</p>
+  <pre><code>X-API-Key: YOUR_API_KEY</code></pre>
+  <p>If neither header is present, rate limiting falls back to client IP address.</p>
+</section>
+
+<section id="endpoints">
+  <h2>Endpoints</h2>
+
+  <div class="endpoint">
+    <h3>Health Check</h3>
+    <p><span class="method method-get">GET</span><span class="path">/v1/health</span></p>
+    <p>Returns service health. Not rate limited.</p>
+    <pre><code>curl https://YOUR_API_HOST/v1/health \
+  -H "X-RapidAPI-Proxy-Secret: YOUR_SECRET"</code></pre>
+    <p>Response:</p>
+    <pre><code>{ "status": "ok" }</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <h3>RDAP Lookup</h3>
+    <p><span class="method method-get">GET</span><span class="path">/v1/rdap/{domain}</span></p>
+    <p>Registration Data Access Protocol lookup. Returns domain status, key dates (registration, expiration, last changed), nameservers, and registrar.</p>
+    <pre><code>curl https://YOUR_API_HOST/v1/rdap/example.com \
+  -H "X-RapidAPI-Proxy-Secret: YOUR_SECRET"</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <h3>DNS Lookup</h3>
+    <p><span class="method method-get">GET</span><span class="path">/v1/dns/{domain}?type={type}</span></p>
+    <p>DNS record lookup over HTTPS. Supported types: A, AAAA, NS, CNAME, SOA, MX, TXT, CAA. Defaults to <code>A</code>.</p>
+    <pre><code>curl "https://YOUR_API_HOST/v1/dns/example.com?type=MX" \
+  -H "X-RapidAPI-Proxy-Secret: YOUR_SECRET"</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <h3>Certificate Transparency</h3>
+    <p><span class="method method-get">GET</span><span class="path">/v1/certificates/{domain}?limit={N}&amp;match={mode}</span></p>
+    <p>Certificate transparency logs from crt.sh. Records are sorted by issuance date (newest first) and include associated domain names (<code>name_value</code>).</p>
+    <table>
+      <tr><th>Param</th><th>Default</th><th>Description</th></tr>
+      <tr><td><code>limit</code></td><td>50</td><td>Max records to return (1&ndash;500).</td></tr>
+      <tr><td><code>match</code></td><td>&mdash;</td><td>Set to <code>wildcard</code> to include subdomain certificates.</td></tr>
+    </table>
+    <pre><code>curl "https://YOUR_API_HOST/v1/certificates/example.com?limit=10&match=wildcard" \
+  -H "X-RapidAPI-Proxy-Secret: YOUR_SECRET"</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <h3>Bulk Lookup</h3>
+    <p><span class="method method-post">POST</span><span class="path">/v1/bulk</span></p>
+    <p>Query up to 20 domains in parallel across one or more lookup types. Each sub-query reuses the cache. Individual failures are reported per-domain without blocking the rest.</p>
+    <pre><code>curl -X POST https://YOUR_API_HOST/v1/bulk \
+  -H "X-RapidAPI-Proxy-Secret: YOUR_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "domains": ["example.com", "google.com"],
+    "types": ["rdap", "dns"],
+    "dns_type": "A"
+  }'</code></pre>
+    <p>Response (abbreviated):</p>
+    <pre><code>{
+  "data": [
+    {
+      "domain": "example.com",
+      "rdap": { "domain": "example.com", "registrar": "..." },
+      "dns": { "domain": "example.com", "type": "A", "records": [...] }
+    },
+    {
+      "domain": "google.com",
+      "rdap": { ... },
+      "dns": { ... }
+    }
+  ],
+  "cached": false
+}</code></pre>
+  </div>
+</section>
+
+<section id="errors">
+  <h2>Error Responses</h2>
+  <p>All errors use a consistent envelope:</p>
+  <pre><code>{
+  "error": {
+    "code": 404,
+    "message": "domain not found",
+    "type": "not_found"
+  }
+}</code></pre>
+  <table>
+    <tr><th>HTTP Status</th><th>Type</th><th>Meaning</th></tr>
+    <tr><td>400</td><td><code>bad_request</code></td><td>Malformed request or invalid parameter.</td></tr>
+    <tr><td>404</td><td><code>not_found</code></td><td>Domain not found in upstream registry.</td></tr>
+    <tr><td>429</td><td><code>rate_limited</code></td><td>Rate limit exceeded (includes <code>Retry-After</code>).</td></tr>
+    <tr><td>502</td><td><code>upstream_error</code></td><td>Upstream provider (RDAP/DNS/crt.sh) error.</td></tr>
+    <tr><td>500</td><td><code>internal_error</code></td><td>Unexpected internal error.</td></tr>
+  </table>
+</section>
+
+<section id="pricing">
+  <h2>Pricing</h2>
+  <p>Subscribe through the RapidAPI marketplace. All plans share the same endpoints; limits differ per tier.</p>
+  <div class="pricing">
+    <div class="plan">
+      <h3>Free</h3>
+      <div class="price">$0<small>/mo</small></div>
+      <ul>
+        <li>100 requests / month</li>
+        <li>All endpoints</li>
+        <li>Community support</li>
+      </ul>
+    </div>
+    <div class="plan featured">
+      <h3>Pro</h3>
+      <div class="price">$9<small>/mo</small></div>
+      <ul>
+        <li>10,000 requests / month</li>
+        <li>Bulk endpoint</li>
+        <li>Cached responses</li>
+        <li>Email support</li>
+      </ul>
+    </div>
+    <div class="plan">
+      <h3>Business</h3>
+      <div class="price">$29<small>/mo</small></div>
+      <ul>
+        <li>50,000 requests / month</li>
+        <li>Higher rate limits</li>
+        <li>Priority support</li>
+        <li>SLA available</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  DomainIntel API &middot; Built with Go, chi, and Redis &middot; RapidAPI Marketplace
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,493 @@
+openapi: 3.0.3
+info:
+  title: DomainIntel API
+  version: 1.0.0
+  description: |
+    Domain intelligence API providing RDAP, DNS, certificate transparency,
+    and bulk domain lookups. Built for the RapidAPI marketplace.
+
+    ## Authentication
+    All data endpoints require the `X-RapidAPI-Proxy-Secret` header when deployed
+    behind the RapidAPI gateway. The `X-API-Key` header is accepted as a fallback
+    for direct access.
+
+    ## Rate Limiting
+    Requests are rate limited per client (120 requests/minute, burst of 30).
+    Rate limit responses include a `Retry-After` header.
+  contact:
+    name: DomainIntel API Support
+servers:
+  - url: https://YOUR_API_HOST
+    description: Production (RapidAPI gateway)
+  - url: http://localhost:8080
+    description: Local development
+
+components:
+  securitySchemes:
+    RapidAPIProxySecret:
+      type: apiKey
+      in: header
+      name: X-RapidAPI-Proxy-Secret
+      description: RapidAPI gateway proxy secret. Required when accessed through RapidAPI.
+    APIKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Direct API key. Accepted as a fallback to the RapidAPI proxy secret.
+
+  responses:
+    BadRequest:
+      description: The request was malformed or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: "limit must be an integer"
+              type: "bad_request"
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 404
+              message: "domain not found"
+              type: "not_found"
+    RateLimited:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: string
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 429
+              message: "rate limit exceeded"
+              type: "rate_limited"
+    UpstreamError:
+      description: An upstream provider (RDAP/DNS/crt.sh) returned an error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 502
+              message: "crt.sh returned 502 (retry later)"
+              type: "upstream_error"
+    InternalError:
+      description: An unexpected internal error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 500
+              message: "internal server error"
+              type: "internal_error"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              example: 404
+            message:
+              type: string
+              example: "domain not found"
+            type:
+              type: string
+              enum: [not_found, bad_request, rate_limited, upstream_error, internal_error]
+              example: "not_found"
+
+    SuccessEnvelope:
+      type: object
+      properties:
+        data:
+          description: The response payload. Shape depends on the endpoint.
+        cached:
+          type: boolean
+          description: Whether the response was served from cache.
+          example: false
+
+    RDAPEvent:
+      type: object
+      properties:
+        action:
+          type: string
+          example: "registration"
+          enum: ["registration", "expiration", "last changed"]
+        date:
+          type: string
+          format: date-time
+          example: "2020-01-15T00:00:00Z"
+
+    RDAPNameserver:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "ns1.example.com"
+        ips:
+          type: array
+          items:
+            type: string
+          example: ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"]
+
+    RDAPResponse:
+      type: object
+      properties:
+        domain:
+          type: string
+          example: "example.com"
+        status:
+          type: array
+          items:
+            type: string
+          example: ["clientTransferProhibited", "serverDeleteProhibited"]
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/RDAPEvent'
+        registration_date:
+          type: string
+          format: date-time
+          example: "1995-08-14T04:00:00Z"
+        expiration_date:
+          type: string
+          format: date-time
+          example: "2025-08-13T04:00:00Z"
+        last_changed_date:
+          type: string
+          format: date-time
+          example: "2024-08-14T07:01:31Z"
+        nameservers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RDAPNameserver'
+        registrar:
+          type: string
+          example: "RESERVED-Internet Assigned Numbers Authority"
+
+    DNSRecord:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "example.com"
+        type:
+          type: string
+          example: "A"
+        ttl:
+          type: integer
+          example: 3600
+        data:
+          type: string
+          example: "93.184.216.34"
+
+    DNSResponse:
+      type: object
+      properties:
+        domain:
+          type: string
+          example: "example.com"
+        type:
+          type: string
+          example: "A"
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSRecord'
+
+    CertRecord:
+      type: object
+      properties:
+        issuer_name:
+          type: string
+          example: "DigiCert TLS RSA SHA256 2020 CA1"
+        common_name:
+          type: string
+          example: "www.example.org"
+        name_value:
+          type: array
+          description: Associated domain names covered by the certificate.
+          items:
+            type: string
+          example: ["www.example.org", "example.org"]
+        not_before:
+          type: string
+          format: date-time
+          example: "2024-01-15T00:00:00"
+        not_after:
+          type: string
+          format: date-time
+          example: "2025-01-15T23:59:59"
+        serial_number:
+          type: string
+          example: "0f:12:34:56:78:9a:bc:de"
+
+    BulkRequest:
+      type: object
+      required: [domains, types]
+      properties:
+        domains:
+          type: array
+          description: Domain names to query. Maximum 20 per request.
+          maxItems: 20
+          items:
+            type: string
+          example: ["example.com", "google.com"]
+        types:
+          type: array
+          description: Query types to perform for each domain.
+          items:
+            type: string
+            enum: [rdap, dns, certificates]
+          example: ["rdap", "dns"]
+        dns_type:
+          type: string
+          description: DNS record type when "dns" is in types. Defaults to "A".
+          example: "A"
+
+    BulkDomainResult:
+      type: object
+      properties:
+        domain:
+          type: string
+          example: "example.com"
+        rdap:
+          $ref: '#/components/schemas/RDAPResponse'
+        dns:
+          $ref: '#/components/schemas/DNSResponse'
+        certificates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CertRecord'
+        error:
+          type: string
+          description: Error message if the domain query failed. Absent on success.
+          example: "rdap request failed: context deadline exceeded"
+
+    BulkResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkDomainResult'
+        cached:
+          type: boolean
+          example: false
+
+security:
+  - RapidAPIProxySecret: []
+  - APIKey: []
+
+paths:
+  /v1/health:
+    get:
+      summary: Health check
+      description: Returns the service health status. Not rate limited.
+      operationId: getHealth
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /v1/rdap/{domain}:
+    get:
+      summary: RDAP lookup
+      description: |
+        Performs a Registration Data Access Protocol (RDAP) lookup for the given
+        domain. Returns registration status, key dates (registration, expiration,
+        last changed), nameservers, and registrar information. Cached for 24 hours.
+      operationId: getRDAP
+      tags: [RDAP]
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          description: Domain name to look up.
+          schema:
+            type: string
+          example: example.com
+      responses:
+        '200':
+          description: RDAP lookup result.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RDAPResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /v1/dns/{domain}:
+    get:
+      summary: DNS lookup
+      description: |
+        Performs a DNS lookup over HTTPS (DoH) for the given domain. Returns
+        records of the requested type. Cached for 5 minutes.
+      operationId: getDNS
+      tags: [DNS]
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          description: Domain name to look up.
+          schema:
+            type: string
+          example: example.com
+        - name: type
+          in: query
+          required: false
+          description: DNS record type. Defaults to "A".
+          schema:
+            type: string
+            enum: [A, AAAA, NS, CNAME, SOA, MX, TXT, CAA]
+            default: A
+          example: MX
+      responses:
+        '200':
+          description: DNS lookup result.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DNSResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /v1/certificates/{domain}:
+    get:
+      summary: Certificate transparency lookup
+      description: |
+        Queries crt.sh for certificate transparency logs associated with the
+        given domain. Returns certificate records sorted by issuance date
+        (most recent first). Cached for 1 hour.
+      operationId: getCertificates
+      tags: [Certificates]
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          description: Domain name to look up.
+          schema:
+            type: string
+          example: example.com
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of certificate records to return. Default 50, max 500.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+          example: 10
+        - name: match
+          in: query
+          required: false
+          description: |
+            Matching mode. Set to "wildcard" to include certificates for
+            subdomains (uses the `%.{domain}` crt.sh query).
+          schema:
+            type: string
+            enum: [wildcard]
+          example: wildcard
+      responses:
+        '200':
+          description: Certificate transparency records.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CertRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /v1/bulk:
+    post:
+      summary: Bulk domain lookup
+      description: |
+        Performs parallel lookups across multiple domains and query types.
+        Each sub-query reuses the cache. Individual domain failures do not
+        block the overall request; failed domains include an "error" field
+        in their result. Maximum 20 domains per request.
+      operationId: postBulk
+      tags: [Bulk]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+            example:
+              domains: ["example.com", "google.com"]
+              types: ["rdap", "dns"]
+              dns_type: "A"
+      responses:
+        '200':
+          description: Bulk lookup results. Individual domain errors are reported per-result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'

@@ -1,0 +1,4 @@
+domainintel
+*.exe
+.DS_Store
+.env
