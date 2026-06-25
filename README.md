@@ -40,8 +40,9 @@ curl -X POST https://domainintel.onrender.com/v1/bulk \
 | Plan | Price | Requests/month |
 |---|---|---|
 | BASIC | Free | 500 |
-| PRO | $9.00 | 10,000 |
-| ULTRA | $29.00 | 100,000 |
+| PRO | $25.00 | 10,000 |
+| ULTRA | $75.00 | 100,000 |
+| MEGA | $150.00 | 500,000 |
 
 [View on RapidAPI](https://rapidapi.com/domainintel-domainintel-default/api/domainintel)
 
