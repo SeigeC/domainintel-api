@@ -7,7 +7,7 @@
 > - API: DomainIntel (api slug: domainintel)
 > - Base URL: https://domainintel.onrender.com
 > - 5 端点: Health/GET, RDAP Lookup/GET, DNS Lookup/GET, Certificates/GET, Bulk Lookup/POST
-> - 3 套餐: BASIC $0 (500/月), PRO $25 (10,000/月), ULTRA $75 (100,000/月), MEGA $150 (500,000/月)
+> - 4 套餐: BASIC $0 (500/月), PRO $25 (10,000/月), ULTRA $75 (100,000/月), MEGA $150 (500,000/月) — 定价已于 2026-06-25 上调
 > - 可见性: Public
 > - Proxy Secret: 87ff4840-6fc9-11f1-bd13-074a384708ef
 > - 待办: 在 Render 设置 RAPIDAPI_PROXY_SECRET 环境变量
