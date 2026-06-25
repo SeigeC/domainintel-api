@@ -56,6 +56,10 @@ func newRouter(h *apiHandler, limiter *RateLimiter) http.Handler {
 		r.Post("/v1/bulk", h.bulkLookup)
 	})
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(indexHTML)
+	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 	})
