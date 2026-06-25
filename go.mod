@@ -1,4 +1,4 @@
-module domainintel
+module github.com/SeigeC/domainintel-api
 
 go 1.26
 
